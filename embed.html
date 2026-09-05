@@ -23,29 +23,39 @@
 <body>
 
 <!-- The actual video iframe gets built by the script below, using
-     whatever video ID is passed in the page's own URL, e.g.:
-     embed.html?v=LwnqifDJCXM
-     This means you only ever host this ONE file — every prayer video
-     just points here with a different ?v= value. -->
+     whatever is passed in the page's own URL:
+     - embed.html?v=VIDEO_ID       for a single video
+     - embed.html?list=PLAYLIST_ID for a playlist (plays whatever is
+       first in that playlist's current sort order)
+     This means you only ever host this ONE file — every prayer just
+     points here with a different ?v= or ?list= value. -->
 <div id="player-container"></div>
 
 <script>
-    function getVideoID() {
+    function getParam(name) {
         const params = new URLSearchParams(window.location.search);
-        return params.get('v');
+        return params.get(name);
     }
 
-    const videoID = getVideoID();
+    const videoID = getParam('v');
+    const playlistID = getParam('list');
 
+    let embedSrc = null;
     if (videoID) {
+        embedSrc = "https://www.youtube-nocookie.com/embed/" + videoID;
+    } else if (playlistID) {
+        embedSrc = "https://www.youtube-nocookie.com/embed/videoseries?list=" + playlistID;
+    }
+
+    if (embedSrc) {
         const iframe = document.createElement('iframe');
-        iframe.src = "https://www.youtube-nocookie.com/embed/" + videoID;
+        iframe.src = embedSrc;
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
         iframe.setAttribute('allowfullscreen', '');
         document.getElementById('player-container').appendChild(iframe);
     } else {
-        document.body.innerText = "No video ID provided.";
+        document.body.innerText = "No video or playlist ID provided.";
     }
 </script>
 
