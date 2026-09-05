@@ -37,14 +37,14 @@
         return params.get(name);
     }
 
-    const videoID = getParam('v');
+    let videoID = getParam('v');
     const playlistID = getParam('list');
 
     let embedSrc = null;
     if (videoID) {
-        embedSrc = "https://www.youtube-nocookie.com/embed/" + videoID;
+        embedSrc = "https://www.youtube-nocookie.com/embed/" + videoID + "?autoplay=1";
     } else if (playlistID) {
-        embedSrc = "https://www.youtube-nocookie.com/embed/videoseries?list=" + playlistID;
+        embedSrc = "https://www.youtube-nocookie.com/embed/videoseries?list=" + playlistID + "&autoplay=1";
     }
 
     if (embedSrc) {
