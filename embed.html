@@ -24,11 +24,18 @@
 
 <!-- The actual video iframe gets built by the script below, using
      whatever is passed in the page's own URL:
-     - embed.html?v=VIDEO_ID       for a single video
-     - embed.html?list=PLAYLIST_ID for a playlist (plays whatever is
-       first in that playlist's current sort order)
-     This means you only ever host this ONE file — every prayer just
-     points here with a different ?v= or ?list= value. -->
+     - embed.html?v=VIDEO_ID
+       Plays one specific video directly.
+     - embed.html?list=PLAYLIST_ID
+       Plays whatever is first in that playlist's current sort order.
+     - embed.html?filterList=PLAYLIST_ID&titleContains=TEXT&apiKey=KEY
+       Fetches the playlist's videos via the YouTube Data API, finds
+       the most recent one whose title contains TEXT (case-insensitive),
+       and plays that specific video. Used for Daily Mass, where the
+       source channel/playlist has other content mixed in and we only
+       want videos actually titled as a Mass.
+     This means you only ever host this ONE file — every screen in the
+     app just points here with different parameters. -->
 <div id="player-container"></div>
 
 <script>
@@ -37,23 +44,62 @@
         return params.get(name);
     }
 
-    const videoID = getParam('v');
-    const playlistID = getParam('list');
-
-    let embedSrc = null;
-    if (videoID) {
-        embedSrc = "https://www.youtube-nocookie.com/embed/" + videoID;
-    } else if (playlistID) {
-        embedSrc = "https://www.youtube-nocookie.com/embed/videoseries?list=" + playlistID;
-    }
-
-    if (embedSrc) {
+    function showIframe(videoID) {
         const iframe = document.createElement('iframe');
-        iframe.src = embedSrc;
+        iframe.src = "https://www.youtube-nocookie.com/embed/" + videoID;
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
         iframe.setAttribute('allowfullscreen', '');
         document.getElementById('player-container').appendChild(iframe);
+    }
+
+    function showPlaylistIframe(playlistID) {
+        const iframe = document.createElement('iframe');
+        iframe.src = "https://www.youtube-nocookie.com/embed/videoseries?list=" + playlistID;
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+        iframe.setAttribute('allowfullscreen', '');
+        document.getElementById('player-container').appendChild(iframe);
+    }
+
+    const videoID = getParam('v');
+    const playlistID = getParam('list');
+    const filterListID = getParam('filterList');
+    const titleContains = getParam('titleContains');
+    const apiKey = getParam('apiKey');
+
+    if (videoID) {
+        showIframe(videoID);
+    } else if (playlistID) {
+        showPlaylistIframe(playlistID);
+    } else if (filterListID && titleContains && apiKey) {
+        // Ask the YouTube Data API for the playlist's most recent
+        // videos (up to 25 at a time), then check each title for a
+        // match. maxResults=25 with no page filtering keeps this
+        // simple — if the matching video is ever further back than
+        // the 25 most recent uploads, this wouldn't find it, but for
+        // a channel posting Mass regularly, it should always be near
+        // the top.
+        const apiUrl = "https://www.googleapis.com/youtube/v3/playlistItems"
+            + "?part=snippet&maxResults=25&playlistId=" + filterListID
+            + "&key=" + apiKey;
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const items = data.items || [];
+                const match = items.find(item =>
+                    item.snippet.title.toLowerCase().includes(titleContains.toLowerCase())
+                );
+                if (match) {
+                    showIframe(match.snippet.resourceId.videoId);
+                } else {
+                    document.body.innerText = "No matching video found.";
+                }
+            })
+            .catch(error => {
+                document.body.innerText = "Error loading video.";
+            });
     } else {
         document.body.innerText = "No video or playlist ID provided.";
     }
